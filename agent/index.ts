@@ -1,14 +1,76 @@
 // Helper function
 function makeToast(text:string) {
     Java.perform(function () {
-        var context = Java.use('android.app.ActivityThread').currentApplication().getApplicationContext();
-
         Java.scheduleOnMainThread(function () {
-            var toast = Java.use("android.widget.Toast");
-            toast.makeText(Java.use("android.app.ActivityThread").currentApplication().getApplicationContext(), Java.use("java.lang.String").$new(text), 1).show();
+            Java.use("android.widget.Toast")
+                .makeText(Java.use("android.app.ActivityThread").currentApplication().getApplicationContext(),
+                    Java.use("java.lang.String").$new(text), 1).show();
         });
     });
 }
+
+// let thread: any = null;
+// let canRun = true;
+// let canRun2 = true;
+// Java.perform(() => {
+//     const method = Java.use("com.apportable.gl.GLSurfaceView$1$1")
+//         .run.overload();
+//     method.implementation = function () {
+//         //thread = Java.retain(Java.use("java.lang.Thread").currentThread());
+//         if (canRun) {
+//             this.run()
+//             canRun = false;
+//         }
+//     }
+// });
+//
+// Java.perform(() => {
+//     const method = Java.use("com.apportable.MainThread$2")
+//         .run.overload();
+//     method.implementation = function () {
+//         //thread = Java.retain(Java.use("java.lang.Thread").currentThread());
+//         makeToast("tick")
+//         if (canRun2) {
+//             setTimeout(()=> {
+//                 {
+//                     let funPointer = Module.getExportByName('libart.so', "_ZN3art17ConditionVariable16WaitHoldingLocksEPNS_6ThreadE");
+//                     let funRef = new NativeFunction(funPointer, 'void', ['pointer']);
+//                     Interceptor.replace(funPointer,
+//                         new NativeCallback((thread) => {
+//                             //makeToast("skip lock")
+//                             return; // NO-OP prevent locking
+//                         }, 'void', ['pointer']));
+//                 }
+//             }, 1000);
+//             this.run()
+//             canRun2 = false;
+//         }
+//     }
+// });
+//
+// // setInterval(() => {
+// //     if (thread != null) {
+// //         thread.interrupt()
+// //     }
+// // }, 1000)
+//
+// Java.perform(() => {
+//     const Activity = Java.use('android.app.Activity');
+//     Activity.onStop.implementation = function () {
+//         this.onStop()
+//     };
+// });
+//
+// Java.perform(() => {
+//     const Activity = Java.use('android.app.Activity');
+//     Activity.onResume.implementation = function () {
+//         //canRun = true;
+//         //canRun2 = true;
+//
+//         this.onResume()
+//     };
+// });
+
 // Failed attempt to fix the webview deadlock
 // let isWebViewing = false;
 //
@@ -76,29 +138,48 @@ Java.perform(() => {
 
         try {
             const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
-            if(library === 'pango') {
+            if (library === 'pango') {
                 Interceptor.replace(openPtr, new NativeCallback((pathPtr, flags) => {
                     const path = pathPtr.readUtf8String();
-                    if (path?.startsWith("/system/fonts/Noto")) {
-                        //log('Skipping "' + path + '"');
+                    // Skip android system fonts, it will cause a deferred pointer on CoreText down the line!!!!
+                    // Removing the func call may works?
+                    if (path?.startsWith("/system/fonts/")) {
                         return -1; // I guess this works, right?
                     }
                     return open(pathPtr, flags);
                 }, 'int', ['pointer', 'int']));
             }
-            if(library === 'CoreText') {
+
+            if (library === 'CoreText') {
                 Interceptor.revert(openPtr);
-                makeToast("Skipped bad system fonts!");
+                let funPointer = Module.getExportByName('libCoreText.so', 'CTFontCopyPangoDescription');
+                let funRef = new NativeFunction(funPointer, 'pointer', ['int', 'pointer', 'pointer', 'pointer']);
+                Interceptor.replace(funPointer,
+                    new NativeCallback((param1) => {
+                        //makeToast("CTFontCopyPangoDescription")
+                        return; // NO-OP  deferred pointer from this
+                    }, 'void', ['int']));
+            }
+
+            if (library === 'CoreGraphics') {
+                {
+                    let funPointer = Module.getExportByName('libCoreGraphics.so', 'CGFontCopyName');
+                    let funRef = new NativeFunction(funPointer, 'pointer', ['int', 'pointer', 'pointer', 'pointer']);
+                    Interceptor.replace(funPointer,
+                        new NativeCallback((param1, string, param3, param4) => {
+                            return string; // NO-OP  deferred pointer from this
+                        }, 'pointer', ['int', 'pointer', 'pointer', 'pointer']));
+                }
             }
             return loaded;
-        } catch(ex) {
+        } catch (ex) {
             console.log(ex);
         } finally {
         }
     };
 });
 
-Interceptor.attach(Module.getExportByName(null,"dlopen"),{
+Interceptor.attach(Module.getExportByName(null, "dlopen"), {
     onEnter: (args) => {
         let text = "Loading library:" + args[0].readCString();
         console.log(text);

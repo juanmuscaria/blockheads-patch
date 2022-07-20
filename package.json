@@ -1,13 +1,14 @@
 {
-  "name": "frida-agent-example",
+  "name": "bh-patch",
   "version": "1.0.0",
-  "description": "Example Frida agent written in TypeScript",
+  "description": "Patches annoying blockheads issues",
   "private": true,
   "main": "agent/index.ts",
   "scripts": {
     "prepare": "npm run build",
     "build": "frida-compile agent/index.ts -o _agent.js -c",
-    "watch": "frida-compile agent/index.ts -o _agent.js -w"
+    "watch": "frida-compile agent/index.ts -o _agent.js -w",
+    "live": "frida -U -f com.noodlecake.blockheads --no-pause -l _agent.js"
   },
   "devDependencies": {
     "@types/frida-gum": "^17.1.0",
