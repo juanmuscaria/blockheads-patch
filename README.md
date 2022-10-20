@@ -16,7 +16,7 @@ It will require a few extra [android tools](https://github.com/sensepost/objecti
 If patching doesn't work, [this](https://github.com/sensepost/objection/wiki/Android-APK-Patching#debugging-failed-patches) can help you figure out the problem.
 
 ## On Windows
-TODO, you should be able to use the linux steps under WLS 
+TODO, you should be able to use the linux steps under WSL
 
 ### Development workflow
 
